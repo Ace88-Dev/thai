@@ -887,23 +887,37 @@ def get_audio_embed_bucket_fps(audio_embed, fps=16, batch_frames=81, m=0, video_
 def wan_sound_to_video(positive, negative, vae, width, height, length, batch_size, frame_offset=0, ref_image=None, audio_encoder_output=None, control_video=None, ref_motion=None, ref_motion_latent=None):
     latent_t = ((length - 1) // 4) + 1
     if audio_encoder_output is not None:
-        feat = torch.cat(audio_encoder_output["encoded_audio_all_layers"])
-        video_rate = 30
-        fps = 16
-        feat = linear_interpolation(feat, input_fps=50, output_fps=video_rate)
-        batch_frames = latent_t * 4
-        audio_embed_bucket, num_repeat = get_audio_embed_bucket_fps(feat, fps=fps, batch_frames=batch_frames, m=0, video_rate=video_rate)
-        audio_embed_bucket = audio_embed_bucket.unsqueeze(0)
-        if len(audio_embed_bucket.shape) == 3:
-            audio_embed_bucket = audio_embed_bucket.permute(0, 2, 1)
-        elif len(audio_embed_bucket.shape) == 4:
-            audio_embed_bucket = audio_embed_bucket.permute(0, 2, 3, 1)
+        try:
+            feat = torch.cat(audio_encoder_output["encoded_audio_all_layers"])
+            video_rate = 30
+            fps = 16
+            feat = linear_interpolation(feat, input_fps=50, output_fps=video_rate)
+            batch_frames = latent_t * 4
+            audio_embed_bucket, num_repeat = get_audio_embed_bucket_fps(feat, fps=fps, batch_frames=batch_frames, m=0, video_rate=video_rate)
+            audio_embed_bucket = audio_embed_bucket.unsqueeze(0)
+            if len(audio_embed_bucket.shape) == 3:
+                audio_embed_bucket = audio_embed_bucket.permute(0, 2, 1)
+            elif len(audio_embed_bucket.shape) == 4:
+                audio_embed_bucket = audio_embed_bucket.permute(0, 2, 3, 1)
 
-        audio_embed_bucket = audio_embed_bucket[:, :, :, frame_offset:frame_offset + batch_frames]
-        if audio_embed_bucket.shape[3] > 0:
-            positive = node_helpers.conditioning_set_values(positive, {"audio_embed": audio_embed_bucket})
-            negative = node_helpers.conditioning_set_values(negative, {"audio_embed": audio_embed_bucket * 0.0})
-            frame_offset += batch_frames
+            # Validate dimensions before slicing to prevent tensor size mismatch errors
+            # Expected shape after permute: [batch, channels, height, width] or [batch, channels, time, features]
+            if audio_embed_bucket.dim() < 4 or audio_embed_bucket.shape[-1] < frame_offset + batch_frames:
+                logging.warning(
+                    f"Audio embed dimensions mismatch: shape={audio_embed_bucket.shape}, "
+                    f"need at least {frame_offset + batch_frames} in last dim. "
+                    f"Skipping audio conditioning. To use audio, ensure audio encoder output matches video length."
+                )
+                audio_encoder_output = None
+            else:
+                audio_embed_bucket = audio_embed_bucket[:, :, :, frame_offset:frame_offset + batch_frames]
+                if audio_embed_bucket.shape[3] > 0:
+                    positive = node_helpers.conditioning_set_values(positive, {"audio_embed": audio_embed_bucket})
+                    negative = node_helpers.conditioning_set_values(negative, {"audio_embed": audio_embed_bucket * 0.0})
+                    frame_offset += batch_frames
+        except Exception as e:
+            logging.warning(f"Audio processing failed: {e}. Continuing without audio conditioning.")
+            audio_encoder_output = None
 
     if ref_image is not None:
         ref_image = comfy.utils.common_upscale(ref_image[:1].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)

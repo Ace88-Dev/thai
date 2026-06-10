@@ -1622,10 +1622,20 @@ class HumoWanModel(WanModel):
         context_img_len = None
 
         if audio_embed is not None:
-            if reference_latent is not None:
-                zero_audio_pad = torch.zeros(audio_embed.shape[0], reference_latent.shape[-3], *audio_embed.shape[2:], device=audio_embed.device, dtype=audio_embed.dtype)
-                audio_embed = torch.cat([audio_embed, zero_audio_pad], dim=1)
-            audio = self.audio_proj(audio_embed).permute(0, 3, 1, 2).flatten(2).transpose(1, 2)
+            try:
+                if reference_latent is not None:
+                    zero_audio_pad = torch.zeros(audio_embed.shape[0], reference_latent.shape[-3], *audio_embed.shape[2:], device=audio_embed.device, dtype=audio_embed.dtype)
+                    audio_embed = torch.cat([audio_embed, zero_audio_pad], dim=1)
+                audio = self.audio_proj(audio_embed).permute(0, 3, 1, 2).flatten(2).transpose(1, 2)
+            except (RuntimeError, ValueError) as e:
+                import logging
+                logging.warning(
+                    f"Audio projection failed due to dimension mismatch: {e}. "
+                    f"Expected audio_embed with 5 dims [batch, frames, windows, blocks=5, channels=1280], "
+                    f"got shape {audio_embed.shape if hasattr(audio_embed, 'shape') else 'unknown'}. "
+                    f"Continuing without audio conditioning."
+                )
+                audio = None
         else:
             audio = None
 
