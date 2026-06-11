@@ -879,12 +879,48 @@ async def validate_inputs(prompt_id, prompt, item, validated, visiting=None):
         if x not in inputs:
             if input_category == "required":
                 details = f"{x}" if not v3_data else x.split(".")[-1]
+                input_name_lower = x.lower()
+                if input_type == "CLIP" or input_name_lower == "clip":
+                    hint = (
+                        f" — Connect the CLIP output from your checkpoint loader "
+                        f"(Load Checkpoint / CheckpointLoaderSimple) to the '{x}' "
+                        f"input on this node. For Flux/SD3 models use a DualCLIPLoader instead."
+                    )
+                elif input_name_lower == "negative":
+                    hint = (
+                        f" — Add a 'CLIP Text Encode' node, leave it empty or type "
+                        f"your negative prompt, then connect its CONDITIONING output to '{x}'."
+                    )
+                elif input_name_lower == "positive":
+                    hint = (
+                        f" — Add a 'CLIP Text Encode' node, type your prompt, "
+                        f"then connect its CONDITIONING output to '{x}'."
+                    )
+                elif input_type in ("MODEL", "UNET"):
+                    hint = (
+                        f" — Connect the MODEL output from your checkpoint loader "
+                        f"(Load Checkpoint / CheckpointLoaderSimple / Load Diffusion Model) "
+                        f"to the '{x}' input on this node."
+                    )
+                elif input_type == "VAE":
+                    hint = (
+                        f" — Connect the VAE output from your checkpoint loader, "
+                        f"or add a separate 'Load VAE' node and connect it to '{x}'."
+                    )
+                elif input_type == "LATENT":
+                    hint = (
+                        f" — Connect a latent image to '{x}'. "
+                        f"Use an 'Empty Latent Image' node or a VAE Encode node."
+                    )
+                else:
+                    hint = ""
                 error = {
                     "type": "required_input_missing",
-                    "message": "Required input is missing",
+                    "message": f"Required input is missing{hint}",
                     "details": details,
                     "extra_info": {
-                        "input_name": x
+                        "input_name": x,
+                        "input_type": input_type,
                     }
                 }
                 errors.append(error)
