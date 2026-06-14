@@ -13,7 +13,47 @@ If the clip is from a checkpoint loader node your checkpoint does not contain a 
 
 This repo patches ComfyUI so checkpoint loaders **fail immediately** with model-specific guidance (Flux, SD3, SDXL, etc.).
 
-## Quick start
+## Start ComfyUI locally (port 8188)
+
+ComfyUI was not loading because dependencies were missing (`python3-venv`, Python packages, and required folders like `custom_nodes/`).
+
+**One-command start:**
+
+```bash
+chmod +x scripts/start-comfyui.sh
+./scripts/start-comfyui.sh
+```
+
+Then open: **http://127.0.0.1:8188**
+
+The script will on first run:
+1. Check for `python3-venv` (install with `sudo apt-get install -y python3-venv` if missing)
+2. Create `ComfyUI/venv` and install dependencies
+3. Create required folders (`models/`, `custom_nodes/`, `input/`, `output/`)
+4. Start ComfyUI on port **8188**
+
+**Options:**
+
+```bash
+# CPU-only mode (no GPU)
+./scripts/start-comfyui.sh --cpu
+
+# Listen on all interfaces (LAN access)
+HOST=0.0.0.0 ./scripts/start-comfyui.sh
+
+# Different port
+PORT=8189 ./scripts/start-comfyui.sh
+```
+
+**Manual start (after deps are installed):**
+
+```bash
+cd ComfyUI
+source venv/bin/activate
+python main.py --listen 127.0.0.1 --port 8188
+```
+
+## Quick start (manual)
 
 ```bash
 cd ComfyUI
