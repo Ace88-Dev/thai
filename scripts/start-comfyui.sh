@@ -293,6 +293,24 @@ if (( need_install )); then
   echo "$TORCH_PROFILE" > "$TORCH_MARKER"
 fi
 
+if [[ "$TORCH_PROFILE" == "amd-rocm" || "$TORCH_PROFILE" == "amd-vulkan" ]]; then
+  if ! python - <<'PY' >/dev/null 2>&1
+import sys
+import torch
+
+has_hip = getattr(torch.version, "hip", None) is not None
+gpu_ready = torch.cuda.is_available()
+sys.exit(0 if has_hip and gpu_ready else 1)
+PY
+  then
+    if ! has_arg "--cpu" "${EXTRA_ARGS[@]}"; then
+      echo "Warning: ROCm/HIP runtime not available in current Python environment."
+      echo "Falling back to --cpu so ComfyUI can still start."
+      EXTRA_ARGS=("--cpu" "${EXTRA_ARGS[@]}")
+    fi
+  fi
+fi
+
 WORKFLOW_DIR="$COMFY_DATA_DIR/user/default/workflows"
 SETTINGS_FILE="$COMFY_DATA_DIR/user/default/comfy.settings.json"
 BACKUP_ROOT="$COMFY_DATA_DIR/backups/workflows"
