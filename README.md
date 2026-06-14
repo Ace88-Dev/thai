@@ -13,44 +13,71 @@ If the clip is from a checkpoint loader node your checkpoint does not contain a 
 
 This repo patches ComfyUI so checkpoint loaders **fail immediately** with model-specific guidance (Flux, SD3, SDXL, etc.).
 
-## Start ComfyUI locally (port 8188)
+## Start ComfyUI locally (robust mode, port 8188)
 
-ComfyUI was not loading because dependencies were missing (`python3-venv`, Python packages, and required folders like `custom_nodes/`).
-
-**One-command start:**
+Use the hardened launcher:
 
 ```bash
 chmod +x scripts/start-comfyui.sh
 ./scripts/start-comfyui.sh
 ```
 
-Then open: **http://127.0.0.1:8188**
+Open: **http://127.0.0.1:8188**
 
-The script will on first run:
-1. Check for `python3-venv` (install with `sudo apt-get install -y python3-venv` if missing)
-2. Create `ComfyUI/venv` and install dependencies
-3. Create required folders (`models/`, `custom_nodes/`, `input/`, `output/`)
-4. Start ComfyUI on port **8188**
+### What this launcher does
 
-**Options:**
+1. Creates/uses `ComfyUI/venv`
+2. Installs dependencies and the correct PyTorch backend profile
+3. Runs ComfyUI against a **persistent data root** (default: `~/.local/share/comfyui`)
+4. Persists `models/`, `input/`, `output/`, `custom_nodes/`, `user/`, and `comfyui.db`
+5. Automatically snapshots workflows + settings at startup/shutdown and on interval
+6. One-time migration of legacy workflows/settings from `ComfyUI/user/default`
+
+This avoids common “workflow disappeared/reset” cases after repo updates or crashes.
+
+### AMD Vulkan profile
+
+For AMD users wanting Vulkan-oriented startup defaults:
 
 ```bash
-# CPU-only mode (no GPU)
+./scripts/start-comfyui.sh --amd-vulkan
+```
+
+Optional GFX override (for cards that need it):
+
+```bash
+./scripts/start-comfyui.sh --amd-vulkan --amd-gfx-version 11.0.0
+```
+
+Notes:
+- ComfyUI compute backend is still PyTorch ROCm on Linux AMD.
+- The Vulkan profile sets AMD/Vulkan environment defaults and ROCm tuning vars for stability/performance.
+
+### Useful options
+
+```bash
+# CPU-only
 ./scripts/start-comfyui.sh --cpu
 
-# Listen on all interfaces (LAN access)
+# LAN access
 HOST=0.0.0.0 ./scripts/start-comfyui.sh
 
 # Different port
 PORT=8189 ./scripts/start-comfyui.sh
+
+# Change persistent data location
+COMFY_DATA_DIR=/mnt/fastssd/comfyui ./scripts/start-comfyui.sh
+
+# Print final startup command without launching
+./scripts/start-comfyui.sh --dry-run
 ```
 
-**Manual start (after deps are installed):**
+### Optional: run as an auto-restarting user service
 
 ```bash
-cd ComfyUI
-source venv/bin/activate
-python main.py --listen 127.0.0.1 --port 8188
+chmod +x scripts/install-comfyui-service.sh
+./scripts/install-comfyui-service.sh
+systemctl --user enable --now comfyui.service
 ```
 
 ## Quick start (manual)
