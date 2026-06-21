@@ -1,0 +1,5 @@
+ComfyUI/venv/
+ComfyUI/__pycache__/
+ComfyUI/**/__pycache__/
+*.pyc
+.DS_Store
